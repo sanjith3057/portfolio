@@ -76,6 +76,16 @@ export default function RAGChat({ isOpen, onClose }) {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -113,24 +123,34 @@ export default function RAGChat({ isOpen, onClose }) {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 40, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+            initial={isMobile ? { y: '100%', opacity: 1 } : { opacity: 0, y: 40, scale: 0.9 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={isMobile ? { y: '100%', opacity: 1 } : { opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             style={{
               position: 'fixed',
-              bottom: '24px',
-              right: '24px',
-              zIndex: 1000,
-              width: '360px',
-              height: '560px',
+              zIndex: 2000, // Higher than dock's 1000
+              ...(isMobile 
+                ? {
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    borderRadius: 0,
+                  }
+                : {
+                    bottom: '24px',
+                    right: '24px',
+                    width: '360px',
+                    borderRadius: 'var(--radius)',
+                  }
+              ),
+              height: isMobile ? '100dvh' : '560px',
               display: 'flex',
               flexDirection: 'column',
-              borderRadius: 'var(--radius)',
-              background: 'rgba(250, 250, 247, 0.75)',
+              background: 'rgba(250, 250, 247, 0.95)',
               backdropFilter: 'blur(24px) saturate(200%)',
               WebkitBackdropFilter: 'blur(24px) saturate(200%)',
-              border: '1px solid rgba(255, 255, 255, 0.6)',
+              border: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.6)',
               boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 16px 40px rgba(124, 58, 237, 0.2)',
               overflow: 'hidden'
             }}
@@ -141,6 +161,7 @@ export default function RAGChat({ isOpen, onClose }) {
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '16px 20px',
+              paddingTop: isMobile ? 'calc(16px + env(safe-area-inset-top))' : '16px',
               borderBottom: '1px solid rgba(255, 255, 255, 0.4)',
               background: 'rgba(255, 255, 255, 0.3)',
             }}>
@@ -221,7 +242,12 @@ export default function RAGChat({ isOpen, onClose }) {
             </div>
 
             {/* Input Area */}
-            <div style={{ padding: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.4)', background: 'rgba(255, 255, 255, 0.2)' }}>
+            <div style={{ 
+              padding: '16px', 
+              paddingBottom: isMobile ? 'calc(16px + env(safe-area-inset-bottom))' : '16px',
+              borderTop: '1px solid rgba(255, 255, 255, 0.4)', 
+              background: 'rgba(255, 255, 255, 0.2)' 
+            }}>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   type="text"
