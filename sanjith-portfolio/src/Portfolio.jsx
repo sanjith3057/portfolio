@@ -604,6 +604,8 @@ const GLOBAL_CSS = `
     .section-title { font-size: 1.8rem; }
     .dock-panel { gap: 6px !important; padding: 6px 8px !important; border-radius: 16px !important; bottom: 12px !important; }
     .dock-item { font-size: 13px !important; border-radius: 8px !important; }
+    .cursor-dot, .cursor-ring { display: none !important; }
+    body { cursor: auto !important; }
     .projects-grid { grid-template-columns: 1fr 1fr !important; }
     .about-grid { grid-template-columns: 1fr !important; }
     .hero-inner { flex-direction: column !important; text-align: center; align-items: center !important; }
