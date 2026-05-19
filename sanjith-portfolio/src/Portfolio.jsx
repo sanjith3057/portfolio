@@ -602,7 +602,8 @@ const GLOBAL_CSS = `
   @media (max-width: 768px) {
     section { padding: 72px 16px; }
     .section-title { font-size: 1.8rem; }
-    .dock-panel { gap: 7px; padding: 7px 10px; }
+    .dock-panel { gap: 6px !important; padding: 6px 8px !important; border-radius: 16px !important; bottom: 12px !important; }
+    .dock-item { font-size: 13px !important; border-radius: 8px !important; }
     .projects-grid { grid-template-columns: 1fr 1fr !important; }
     .about-grid { grid-template-columns: 1fr !important; }
     .hero-inner { flex-direction: column !important; text-align: center; align-items: center !important; }
@@ -772,10 +773,23 @@ function DockLabel({ children, labelVisible }) {
 function DockNav({ items }) {
   const mouseX = useMotionValue(Infinity);
   const spring = { mass: 0.1, stiffness: 150, damping: 12 };
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || window.matchMedia("(hover: none)").matches);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+  const baseSize = isMobile ? 34 : 48;
+  const magnifySize = isMobile ? 34 : 80;
+  const dist = isMobile ? 0 : 160;
+
   return (
     <div className="dock-panel" onMouseMove={({ pageX }) => mouseX.set(pageX)} onMouseLeave={() => mouseX.set(Infinity)}>
       {items.map((item, i) => (
-        <DockItem key={i} onClick={item.onClick} mouseX={mouseX} spring={spring} distance={160} magnification={80} baseItemSize={48}>
+        <DockItem key={i} onClick={item.onClick} mouseX={mouseX} spring={spring} distance={dist} magnification={magnifySize} baseItemSize={baseSize}>
           <DockIcon>{item.icon}</DockIcon>
           <DockLabel>{item.label}</DockLabel>
         </DockItem>
