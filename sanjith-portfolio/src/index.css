@@ -1,0 +1,5 @@
+/* Custom styling is injected directly by Portfolio.jsx */
+html, body {
+  margin: 0;
+  padding: 0;
+}

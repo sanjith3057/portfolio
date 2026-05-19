@@ -1,0 +1,13 @@
+# Ignore environment variable files
+.env
+.env.local
+.env.production
+.env.development
+
+# Ignore system/agent metadata
+.agent/
+.ralphy/
+
+# Ignore documentation markdown files (SANJITH_PORTFOLIO.md, PORTFOLIO_PLAN.md, etc.)
+*.md
+!sanjith-portfolio/README.md
