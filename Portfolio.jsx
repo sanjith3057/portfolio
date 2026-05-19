@@ -601,7 +601,7 @@ const DATA = {
     github: "https://github.com/sanjith3057",
     linkedin: "https://www.linkedin.com/in/sanjith-g-9a2283249",
     email: "sajith3057e@gmail.com",
-    resumeUrl: "https://drive.google.com/file/d/1RvxhqId4s53aWtx_cv618fYJG4pbx6VE/view",
+    resumeUrl: "https://drive.google.com/file/d/16DGZKsJmETc0QLiux3hzumAPTHAdFIaF/view?usp=drivesdk",
   },
   stats: [
     { label: "Internship XP", value: "8 months of inter", icon: "💼", color: "#7C3AED" },
