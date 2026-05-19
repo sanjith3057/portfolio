@@ -578,6 +578,27 @@ const GLOBAL_CSS = `
   }
 
   /* Responsive */
+  #hero {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+    padding-top: 80px;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .hero-avatar-inner {
+    width: 280px;
+    height: 280px;
+  }
+  .hero-buttons-container {
+    display: flex;
+    flex-wrap: wrap;
+  }
   @media (max-width: 768px) {
     section { padding: 72px 16px; }
     .section-title { font-size: 1.8rem; }
@@ -585,10 +606,35 @@ const GLOBAL_CSS = `
     .projects-grid { grid-template-columns: 1fr 1fr !important; }
     .about-grid { grid-template-columns: 1fr !important; }
     .hero-inner { flex-direction: column !important; text-align: center; align-items: center !important; }
+    #hero {
+      min-height: auto !important;
+      padding-top: 100px !important;
+      padding-bottom: 60px !important;
+    }
+    .hero-avatar-inner {
+      width: 200px !important;
+      height: 200px !important;
+    }
+    .hero-buttons-container {
+      justify-content: center;
+    }
+    .stats-grid {
+      grid-template-columns: 1fr !important;
+    }
   }
   @media (max-width: 480px) {
     .projects-grid { grid-template-columns: 1fr !important; }
-    .stats-grid { grid-template-columns: 1fr 1fr !important; }
+  }
+  @media (hover: none) {
+    .dock-label {
+      display: none !important;
+    }
+    body {
+      cursor: auto !important;
+    }
+    .cursor-dot, .cursor-ring {
+      display: none !important;
+    }
   }
 `;
 
@@ -897,14 +943,28 @@ function LogoLoop({ items, speed = 80, reverse = false }) {
    ============================================================ */
 const SPRING = { type: "spring", stiffness: 300, damping: 30 };
 const GAP = 16;
-function Carousel({ items, baseWidth = 320 }) {
+function Carousel({ items }) {
+  const [width, setWidth] = useState(320);
+  useEffect(() => {
+    const handleResize = () => {
+      setWidth(Math.min(500, window.innerWidth - 32));
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const pad = 16;
-  const itemWidth = baseWidth - pad * 2;
+  const itemWidth = width - pad * 2;
   const trackOffset = itemWidth + GAP;
   const loop = useMemo(() => [items[items.length - 1], ...items, items[0]], [items]);
   const [pos, setPos] = useState(1);
   const [jumping, setJumping] = useState(false);
   const x = useMotionValue(-(1 * trackOffset));
+
+  useEffect(() => {
+    x.set(-(pos * trackOffset));
+  }, [trackOffset, pos, x]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -923,7 +983,7 @@ function Carousel({ items, baseWidth = 320 }) {
   };
   const activeIdx = (pos - 1 + items.length) % items.length;
   return (
-    <div style={{ width: baseWidth }}>
+    <div style={{ width: width }}>
       <div className="carousel-wrap glass" style={{ padding: pad }}>
         <motion.div className="carousel-track" drag="x" dragConstraints={{ left: -trackOffset * (loop.length - 1), right: 0 }} style={{ width: "max-content", gap: GAP, perspective: 1000, x }} animate={{ x: -(pos * trackOffset) }} transition={jumping ? { duration: 0 } : SPRING} onDragEnd={handleDragEnd} onAnimationComplete={handleAnimEnd}>
           {loop.map((item, i) => {
@@ -974,7 +1034,7 @@ function Carousel({ items, baseWidth = 320 }) {
 function HeroSection() {
   const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
   return (
-    <section id="hero" style={{ minHeight: "100vh", display: "flex", alignItems: "center", position: "relative", overflow: "hidden", paddingTop: 80 }}>
+    <section id="hero">
       {/* Background PixelBlast */}
       <div style={{ position: "absolute", inset: 0, zIndex: 0, opacity: 0.35 }}>
         <PixelBlast
@@ -1011,7 +1071,7 @@ function HeroSection() {
                 <BlurText text={DATA.meta.tagline} delay={80} animateBy="words" className="" />
               </div>
             </motion.div>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: 0.5 }} style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 36 }}>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: 0.5 }} className="hero-buttons-container" style={{ gap: 14, marginTop: 36 }}>
               <a href={DATA.meta.resumeUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", padding: "12px 28px", borderRadius: 50, fontWeight: 700, fontSize: 14, textDecoration: "none", color: "#fff", background: "linear-gradient(135deg, var(--accent1), #9333EA)", boxShadow: "0 4px 20px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.2)", transition: "all 0.25s ease" }} onMouseEnter={(e) => { e.target.style.transform = "translateY(-3px) rotateX(5deg)"; e.target.style.boxShadow = "0 12px 32px rgba(124,58,237,0.4), inset 0 1px 0 rgba(255,255,255,0.3)"; }} onMouseLeave={(e) => { e.target.style.transform = ""; e.target.style.boxShadow = "0 4px 20px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.2)"; }}>
                 Download Resume
               </a>
@@ -1023,7 +1083,7 @@ function HeroSection() {
 
           {/* Avatar Integration */}
           <motion.div initial={{ opacity: 0, scale: 0.8, rotate: -5 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} transition={{ delay: 0.4, duration: 0.8, type: "spring" }} style={{ position: "relative", flexShrink: 0 }}>
-            <div style={{ width: 280, height: 280, display: "flex", alignItems: "center", justifyContent: "center", animation: "float 6s ease-in-out infinite", position: "relative" }}>
+            <div className="hero-avatar-inner" style={{ display: "flex", alignItems: "center", justifyContent: "center", animation: "float 6s ease-in-out infinite", position: "relative" }}>
               <img
                 src="/avatar.png"
                 alt="Sanjith G"
@@ -1076,7 +1136,7 @@ function AboutSection() {
             <br />
             <BlurText text="8 months of internship experience at Peopleclick Techno Solutions (production RAG, drift monitoring) and Yaane Technologies (NLP pipelines). 2 research publications. Now looking for my next challenge." delay={25} animateBy="words" className="" />
           </div>
-          <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+          <div className="stats-grid">
             {DATA.stats.map((s, i) => (
               <motion.div key={i} ref={(el) => (tiltRef.current[i] = el)} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false, amount: 0.1 }} transition={{ delay: i * 0.1 }} className="stat-card" onMouseMove={(e) => handleTilt(e, i)} onMouseLeave={() => resetTilt(i)} style={{ "--shimmer-delay": `${i * 0.8}s` }}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>{s.icon}</div>
@@ -1158,7 +1218,7 @@ function CertificatesSection() {
         <div className="section-label">Credentials</div>
         <div className="section-title">Certified &<br />Verified</div>
         <div style={{ display: "flex", justifyContent: "center" }}>
-          <Carousel items={DATA.certs} baseWidth={Math.min(500, window.innerWidth - 32)} />
+          <Carousel items={DATA.certs} />
         </div>
       </div>
     </section>
