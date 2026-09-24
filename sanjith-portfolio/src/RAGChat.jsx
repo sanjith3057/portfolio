@@ -66,7 +66,8 @@ ${knowledgeBase}`;
         { role: "system", content: systemPrompt },
         { role: "user", content: question },
       ],
-      model: "llama-3.1-8b-instant", // using smaller/faster model
+      model: "openai/gpt-oss-20b", // fast Groq model (llama-3.1-8b-instant was retired)
+      reasoning_effort: "low",
       temperature: 0.5,
       max_tokens: 1024,
     });
