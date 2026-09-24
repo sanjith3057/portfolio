@@ -39,6 +39,14 @@ Projects:
 - FORGE: QLoRA fine-tuning for Llama-3.1-8B on 4GB VRAM.
 - PHANTOM-3B: Custom model via SLERP + TIES+DARE merging.
 - NEXUS: FastAPI + Docker + MLflow production deployment stack.
+- SCRIBE (new): Autonomous business-document agent. One natural-language request in, a fully planned, self-reviewed, formatted Word (.docx) document out. Plan -> Draft -> Reflect -> Revise -> Deliver pipeline with live streaming UI, embedded charts, bounded self-correction and token-budget management. Stack: FastAPI, Groq, python-docx, Matplotlib, Next.js 16, React 19, Docker.
+- HCP CRM / Log-Interaction (new): AI-first Healthcare Professional CRM for pharma field reps. Split-screen structured form + LangGraph chat assistant (Groq llama-3.3-70b) with 5 tools: log interaction, edit interaction, compliance check, follow-up scheduling, interaction history. Stack: React, Redux Toolkit, FastAPI, SQLAlchemy, PostgreSQL.
+
+Open Source Contributions:
+- Parameter Golf (OpenAI Model Craft Challenge): Training the smallest language model that fits in a 16MB artifact, scored on FineWeb bits-per-byte under a 10-minute 8xH100 budget. PyTorch, torchrun, SentencePiece.
+
+Freelance:
+- Open to freelance work: RAG systems, AI agents, LLM fine-tuning, and FastAPI/Docker deployments.
 `;
 
 async function getRAGResponse(question) {
@@ -187,7 +195,7 @@ export default function RAGChat({ isOpen, onClose }) {
             </div>
 
             {/* Messages Area */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div data-lenis-prevent style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {messages.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--subtext)', fontSize: '0.95rem', lineHeight: 1.5 }}>
                   Hi there! 👋<br /><br />

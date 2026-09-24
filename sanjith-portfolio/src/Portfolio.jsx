@@ -4,8 +4,11 @@ import {
   useMotionValue,
   useSpring,
   useTransform,
+  useScroll,
+  useReducedMotion,
   AnimatePresence,
 } from "framer-motion";
+import Lenis from "lenis";
 
 // Custom logos from asserts folder
 import githubLogo from "../../asserts/github-logo.png";
@@ -43,7 +46,66 @@ const GLOBAL_CSS = `
     --radius-sm: 14px;
   }
 
-  html { scroll-behavior: smooth; }
+  html { scroll-behavior: smooth; position: relative; }
+
+  /* Lenis smooth scroll */
+  html.lenis, html.lenis body { height: auto; }
+  .lenis.lenis-smooth { scroll-behavior: auto !important; }
+  .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+  .lenis.lenis-stopped { overflow: hidden; }
+
+  /* Cinematic layer — scroll progress, film grain, intro reveal */
+  .scroll-progress {
+    position: fixed; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--accent1), var(--accent2), var(--accent3));
+    transform-origin: 0% 50%;
+    z-index: 10001;
+    pointer-events: none;
+  }
+  .film-grain {
+    position: fixed; inset: -50%; z-index: 9990; pointer-events: none;
+    opacity: 0.045; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation: grain 0.8s steps(4) infinite;
+  }
+  @keyframes grain {
+    0% { transform: translate(0, 0); }
+    25% { transform: translate(-3%, 2%); }
+    50% { transform: translate(2%, -3%); }
+    75% { transform: translate(-2%, -1%); }
+    100% { transform: translate(0, 0); }
+  }
+  .intro-curtain {
+    position: fixed; inset: 0; z-index: 10002;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    background: var(--bg);
+  }
+  .intro-curtain::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 600px 500px at 30% 40%, rgba(124,58,237,0.14) 0%, transparent 70%),
+      radial-gradient(ellipse 500px 400px at 75% 60%, rgba(56,189,248,0.14) 0%, transparent 70%);
+  }
+  .intro-name {
+    position: relative; display: flex; overflow: hidden;
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(2.6rem, 9vw, 6rem); letter-spacing: -0.02em; color: var(--text);
+  }
+  .intro-meta {
+    position: relative; display: flex; align-items: center; gap: 14px;
+    font-family: var(--font-display); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent1);
+  }
+  .intro-bar { width: 140px; height: 2px; border-radius: 2px; background: rgba(124,58,237,0.15); overflow: hidden; }
+  .intro-bar > div { height: 100%; background: linear-gradient(90deg, var(--accent1), var(--accent2)); transform-origin: 0% 50%; }
+
+  /* 3D scene wrapper — every section rides the camera */
+  .scene-3d { will-change: transform, opacity; }
+  .scenes { overflow-x: clip; }
+
+  /* Pinned hero track */
+  .hero-track { position: relative; height: 170vh; }
+  .hero-track > #hero-stage { position: sticky; top: 0; height: 100vh; }
 
   body {
     font-family: var(--font-body);
@@ -578,7 +640,7 @@ const GLOBAL_CSS = `
   }
 
   /* Responsive */
-  #hero {
+  #hero-stage {
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -588,9 +650,11 @@ const GLOBAL_CSS = `
   }
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 16px;
   }
+  .stat-value { font-family: var(--font-display); font-size: clamp(1.8rem, 2.6vw, 2.2rem); font-weight: 800; line-height: 1.1; display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 6px; }
+  .stat-unit { font-size: 0.5em; font-weight: 700; letter-spacing: 0.01em; opacity: 0.85; }
   .hero-avatar-inner {
     width: 280px;
     height: 280px;
@@ -599,34 +663,78 @@ const GLOBAL_CSS = `
     display: flex;
     flex-wrap: wrap;
   }
+  .projects-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    row-gap: 72px;
+    column-gap: 28px;
+    padding: 20px 0;
+    align-items: start;
+  }
+  .new-badge {
+    display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 20px;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.1em; vertical-align: middle;
+    color: #fff; background: linear-gradient(135deg, var(--accent1), var(--accent3));
+    box-shadow: 0 2px 8px rgba(124,58,237,0.25);
+  }
+  .contrib-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px;
+    align-items: stretch;
+  }
+  .contrib-grid .border-glow-card { height: 100%; }
+  .contrib-grid .border-glow-inner { height: 100%; }
+  .kind-pill {
+    display: inline-flex; align-items: center; gap: 6px; align-self: flex-start;
+    padding: 4px 12px; border-radius: 20px; margin-bottom: 16px;
+    font-family: var(--font-display); font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .cta-link {
+    display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; margin-top: auto;
+    font-size: 12px; font-weight: 700; text-decoration: none; background: none; border: none; padding: 0; cursor: pointer;
+    font-family: var(--font-body);
+  }
+  @media (max-width: 1024px) {
+    .projects-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
   @media (max-width: 768px) {
     section { padding: 72px 16px; }
     .section-title { font-size: 1.8rem; }
-    .dock-panel { gap: 6px !important; padding: 6px 8px !important; border-radius: 16px !important; bottom: 12px !important; }
+    .dock-panel { gap: 5px !important; padding: 6px 8px !important; border-radius: 16px !important; bottom: 12px !important; }
     .dock-item { font-size: 13px !important; border-radius: 8px !important; }
     .cursor-dot, .cursor-ring { display: none !important; }
     body { cursor: auto !important; }
-    .projects-grid { grid-template-columns: 1fr 1fr !important; }
-    .about-grid { grid-template-columns: 1fr !important; }
-    .hero-inner { flex-direction: column !important; text-align: center; align-items: center !important; }
-    #hero {
-      min-height: auto !important;
-      padding-top: 100px !important;
-      padding-bottom: 60px !important;
+    .projects-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; row-gap: 56px; }
+    .contrib-grid { grid-template-columns: 1fr; }
+    .about-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+    .hero-inner { flex-direction: column !important; text-align: center; align-items: center !important; gap: 24px !important; }
+    .hero-inner { --blur-justify: center; }
+    .hero-track { height: 130vh; }
+    #hero-stage {
+      padding-top: 72px !important;
+      padding-bottom: 40px !important;
     }
     .hero-avatar-inner {
-      width: 200px !important;
-      height: 200px !important;
+      width: 190px !important;
+      height: 190px !important;
     }
     .hero-buttons-container {
       justify-content: center;
     }
-    .stats-grid {
-      grid-template-columns: 1fr !important;
-    }
+    .scroll-cue { display: none !important; }
+    .pub-item { padding-left: 56px; }
+    .pub-num { font-size: 1.9rem; }
+    .border-glow-inner { padding: 20px; }
   }
   @media (max-width: 480px) {
-    .projects-grid { grid-template-columns: 1fr !important; }
+    .projects-grid { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-track { height: auto; }
+    .hero-track > #hero-stage { position: relative; height: auto; }
+    .film-grain { animation: none; }
   }
   @media (hover: none) {
     .dock-label {
@@ -652,7 +760,7 @@ const DATA = {
     bio: "Fresh BSc CS grad with 8 months of production AI experience. I build RAG pipelines, fine-tune LLMs on 4GB VRAM, and merge models at midnight. Currently seeking AI/ML roles in Chennai and beyond.",
     github: "https://github.com/sanjith3057",
     linkedin: "https://www.linkedin.com/in/sanjith-g-9a2283249",
-    email: "sajith3057e@gmail.com",
+    email: "sanjith3057e@gmail.com",
     resumeUrl: "https://drive.google.com/file/d/10EDb8kx1_uFMqH45r0VLEfQi5vY0-WNj/view?usp=sharing",
   },
   stats: [
@@ -661,12 +769,40 @@ const DATA = {
     { label: "Publications", value: "2 Papers", icon: "📄", color: "#10B981" },
   ],
   projects: [
+    { id: "scribe", name: "SCRIBE", isNew: true, tagline: "Autonomous document agent — one request in, a planned, self-reviewed, chart-embedded Word doc out via Plan → Draft → Reflect → Revise → Deliver", tech: ["FastAPI", "Groq", "Next.js", "python-docx"], color: "#EC4899", github: "https://github.com/sanjith3057/Scribe" },
+    { id: "hcp-crm", name: "HCP CRM", isNew: true, tagline: "AI-first CRM for pharma field reps — LangGraph chat agent with 5 tools (log, edit, compliance, follow-ups, history) synced live to a structured form", tech: ["LangGraph", "React", "Redux", "PostgreSQL"], color: "#14B8A6", github: "https://github.com/sanjith3057/Log-Interaction-" },
     { id: "prism", name: "PRISM-RAG", tagline: "5-layer anti-lost-in-middle RAG with hybrid ChromaDB + BM25 retrieval & cross-encoder reranking", tech: ["LangChain", "ChromaDB", "BM25", "FastAPI"], color: "#7C3AED", github: "https://github.com/sanjith3057/PRISM-RAG" },
     { id: "guardian", name: "GUARDIAN-AGENT", tagline: "Self-healing ReAct agent with BudgetGuard, tool observability and automatic recovery loops", tech: ["ReAct", "LangChain", "MLflow", "Python"], color: "#38BDF8", github: "https://github.com/sanjith3057/GUARDIAN-AGENT" },
     { id: "lens", name: "LENS", tagline: "Multimodal document intelligence pipeline using CLIP embeddings and Llama 4 Scout", tech: ["CLIP", "Llama 4", "FastAPI", "Python"], color: "#FB7185", github: "https://github.com/sanjith3057/LENS" },
     { id: "forge", name: "FORGE", tagline: "QLoRA fine-tuning for Llama-3.1-8B on 4GB VRAM — 19/20 format consistency vs 6/20 baseline", tech: ["QLoRA", "PEFT", "HuggingFace", "PyTorch"], color: "#F59E0B", github: "https://github.com/sanjith3057/FORGE" },
     { id: "phantom", name: "PHANTOM-3B", tagline: "Custom model via SLERP + TIES+DARE merging of Qwen2.5-3B and Phi-3.5-mini using MergeKit", tech: ["MergeKit", "Qwen2.5", "Phi-3.5", "GGUF"], color: "#6366F1", github: "https://github.com/sanjith3057/PHANTOM-3B" },
     { id: "nexus", name: "NEXUS", tagline: "FastAPI + Docker + MLflow production deployment stack — from notebook to monitored endpoint", tech: ["FastAPI", "Docker", "MLflow", "Python"], color: "#10B981", github: "https://github.com/sanjith3057/NEXUS" },
+  ],
+  contributions: [
+    {
+      id: "param-golf",
+      kind: "Open Source",
+      kindIcon: "⛳",
+      name: "Parameter Golf",
+      org: "OpenAI · Model Craft Challenge",
+      tagline: "Competing in OpenAI's challenge to train the smallest language model that fits in a 16MB artifact — scored on FineWeb bits-per-byte under a 10-minute 8×H100 training budget.",
+      tech: ["PyTorch", "torchrun", "SentencePiece", "FineWeb"],
+      color: "#7C3AED",
+      href: "https://github.com/sanjith3057/parameter-golf",
+      cta: "View Fork →",
+    },
+    {
+      id: "freelance",
+      kind: "Freelance",
+      kindIcon: "✦",
+      name: "Available for Client Work",
+      org: "Remote · Chennai",
+      tagline: "I take on freelance builds end-to-end — RAG systems over your documents, tool-using AI agents, LLM fine-tuning on a budget, and FastAPI + Docker deployments with monitoring.",
+      tech: ["RAG", "AI Agents", "Fine-tuning", "MLOps"],
+      color: "#38BDF8",
+      scrollTo: "contact",
+      cta: "Start a Project →",
+    },
   ],
   skills: [
     { label: "Python", color: "#3776AB" },
@@ -721,6 +857,86 @@ function darkenColor(hex, pct) {
   const g = Math.max(0, Math.min(255, Math.floor(((n >> 8) & 0xff) * (1 - pct))));
   const b = Math.max(0, Math.min(255, Math.floor((n & 0xff) * (1 - pct))));
   return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+}
+
+/* ============================================================
+   SMOOTH SCROLL — Lenis instance shared by nav + buttons
+   ============================================================ */
+let lenisInstance = null;
+function scrollToId(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (lenisInstance) lenisInstance.scrollTo(el, { duration: 1.6 });
+  else el.scrollIntoView({ behavior: "smooth" });
+}
+
+function useSmoothScroll(enabled) {
+  useEffect(() => {
+    if (!enabled) return;
+    const lenis = new Lenis({ duration: 1.25, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), smoothWheel: true });
+    lenisInstance = lenis;
+    let raf;
+    const loop = (t) => { lenis.raf(t); raf = requestAnimationFrame(loop); };
+    raf = requestAnimationFrame(loop);
+    return () => { cancelAnimationFrame(raf); lenis.destroy(); lenisInstance = null; };
+  }, [enabled]);
+}
+
+/* ============================================================
+   SCENE 3D — sections tilt up from depth on entry, recede on exit
+   ============================================================ */
+function Scene3D({ children }) {
+  const ref = useRef(null);
+  const reduce = useReducedMotion();
+  const { scrollYProgress: enter } = useScroll({ target: ref, offset: ["start end", "start 0.35"] });
+  const { scrollYProgress: exit } = useScroll({ target: ref, offset: ["end 0.55", "end start"] });
+  const rotateX = useTransform([enter, exit], ([a, b]) => (1 - a) * 16 - b * 10);
+  const scale = useTransform([enter, exit], ([a, b]) => 0.9 + a * 0.1 - b * 0.06);
+  const y = useTransform([enter, exit], ([a, b]) => (1 - a) * 90 - b * 40);
+  const opacity = useTransform([enter, exit], ([a, b]) => Math.min(1, 0.15 + a * 0.85) - b * 0.6);
+  if (reduce) return <div ref={ref}>{children}</div>;
+  return (
+    <motion.div ref={ref} className="scene-3d" style={{ rotateX, scale, y, opacity, transformPerspective: 1400, transformOrigin: "50% 30%" }}>
+      {children}
+    </motion.div>
+  );
+}
+
+/* ============================================================
+   INTRO — opening title card, wipes up like a video cut
+   ============================================================ */
+function Intro({ onDone }) {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(false), 1700);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <AnimatePresence onExitComplete={onDone}>
+      {visible && (
+        <motion.div className="intro-curtain" exit={{ clipPath: "inset(0 0 100% 0)" }} initial={{ clipPath: "inset(0 0 0% 0)" }} transition={{ duration: 0.9, ease: [0.76, 0, 0.24, 1] }}>
+          <div className="intro-name">
+            {DATA.meta.name.split("").map((ch, i) => (
+              <motion.span key={i} initial={{ y: "110%" }} animate={{ y: 0 }} transition={{ delay: 0.1 + i * 0.05, duration: 0.7, ease: [0.22, 1, 0.36, 1] }} style={{ display: "inline-block", whiteSpace: "pre" }}>
+                {ch}
+              </motion.span>
+            ))}
+          </div>
+          <motion.div className="intro-meta" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
+            <span>AI / ML Engineer</span>
+            <div className="intro-bar"><motion.div initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.4, duration: 1.1, ease: "easeInOut" }} /></div>
+            <span>Portfolio {new Date().getFullYear()}</span>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+function ScrollProgress() {
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, { stiffness: 120, damping: 24, mass: 0.2 });
+  return <motion.div className="scroll-progress" style={{ scaleX }} />;
 }
 
 /* ============================================================
@@ -784,8 +1000,8 @@ function DockNav({ items }) {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
-  const baseSize = isMobile ? 34 : 48;
-  const magnifySize = isMobile ? 34 : 80;
+  const baseSize = isMobile ? 32 : 48;
+  const magnifySize = isMobile ? 32 : 80;
   const dist = isMobile ? 0 : 160;
 
   return (
@@ -803,7 +1019,7 @@ function DockNav({ items }) {
 /* ============================================================
    BLUR TEXT
    ============================================================ */
-function BlurText({ text = "", delay = 120, animateBy = "words", className = "" }) {
+function BlurText({ text = "", delay = 120, animateBy = "words", className = "", justify = "flex-start" }) {
   const elements = animateBy === "words" ? text.split(" ") : text.split("");
   const [inView, setInView] = useState(false);
   const ref = useRef(null);
@@ -813,7 +1029,7 @@ function BlurText({ text = "", delay = 120, animateBy = "words", className = "" 
     return () => obs.disconnect();
   }, []);
   return (
-    <p ref={ref} className={className} style={{ display: "flex", flexWrap: "wrap" }}>
+    <p ref={ref} className={`blur-text ${className}`} style={{ display: "flex", flexWrap: "wrap", justifyContent: `var(--blur-justify, ${justify})` }}>
       {elements.map((seg, i) => (
         <motion.span key={i} initial={{ filter: "blur(10px)", opacity: 0, y: -20 }} animate={inView ? { filter: "blur(0px)", opacity: 1, y: 0 } : {}} transition={{ duration: 0.5, delay: (i * delay) / 1000, ease: "easeOut" }} style={{ display: "inline-block", marginRight: animateBy === "words" ? "0.3em" : 0 }}>
           {seg}
@@ -844,8 +1060,10 @@ function TextType({ texts = [], typingSpeed = 60, pauseDuration = 1800, deleting
       if (displayed.length > 0) {
         timer = setTimeout(() => setDisplayed((d) => d.slice(0, -1)), deletingSpeed);
       } else {
-        setDeleting(false); setCharIdx(0);
-        setIdx((i) => (i + 1) % texts.length);
+        timer = setTimeout(() => {
+          setDeleting(false); setCharIdx(0);
+          setIdx((i) => (i + 1) % texts.length);
+        }, 0);
       }
     }
     return () => clearTimeout(timer);
@@ -959,6 +1177,35 @@ function LogoLoop({ items, speed = 80, reverse = false }) {
    ============================================================ */
 const SPRING = { type: "spring", stiffness: 300, damping: 30 };
 const GAP = 16;
+function CarouselItem({ item, index, x, trackOffset, itemWidth }) {
+  const range = [-(index + 1) * trackOffset, -index * trackOffset, -(index - 1) * trackOffset];
+  const scale = useTransform(x, range, [0.85, 1, 0.85], { clamp: false });
+  const opacity = useTransform(x, range, [0.4, 1, 0.4], { clamp: false });
+  return (
+    <motion.div className="carousel-item" style={{ width: itemWidth, minHeight: 180, scale, opacity }}>
+      <div style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 56,
+        height: 56,
+        borderRadius: "14px",
+        background: `linear-gradient(135deg, ${item.color}15, ${item.color}35)`,
+        border: `1px solid ${item.color}80`,
+        boxShadow: `inset 0 1px 1px rgba(255,255,255,0.2), 0 8px 20px ${item.color}15`,
+        fontSize: 28,
+        marginBottom: 16
+      }}>
+        {item.icon}
+      </div>
+      <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 16, marginBottom: 6, color: "var(--text)" }}>{item.title}</div>
+      <div style={{ fontSize: 13, color: "var(--subtext)", marginBottom: 8 }}>{item.issuer} · {item.date}</div>
+      <a href={item.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: item.url === "#" ? "var(--subtext)" : "var(--accent1)", fontWeight: 600, textDecoration: "none", borderBottom: item.url !== "#" ? "1px solid var(--accent1)" : "none" }}>
+        {item.url !== "#" ? "View Certificate →" : "Badge pending"}
+      </a>
+    </motion.div>
+  );
+}
 function Carousel({ items }) {
   const [width, setWidth] = useState(320);
   useEffect(() => {
@@ -1002,35 +1249,9 @@ function Carousel({ items }) {
     <div style={{ width: width }}>
       <div className="carousel-wrap glass" style={{ padding: pad }}>
         <motion.div className="carousel-track" drag="x" dragConstraints={{ left: -trackOffset * (loop.length - 1), right: 0 }} style={{ width: "max-content", gap: GAP, perspective: 1000, x }} animate={{ x: -(pos * trackOffset) }} transition={jumping ? { duration: 0 } : SPRING} onDragEnd={handleDragEnd} onAnimationComplete={handleAnimEnd}>
-          {loop.map((item, i) => {
-            const range = [-(i + 1) * trackOffset, -i * trackOffset, -(i - 1) * trackOffset];
-            const scale = useTransform(x, range, [0.85, 1, 0.85], { clamp: false });
-            const opacity = useTransform(x, range, [0.4, 1, 0.4], { clamp: false });
-            return (
-              <motion.div key={i} className="carousel-item" style={{ width: itemWidth, minHeight: 180, scale, opacity }}>
-                <div style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 56,
-                  height: 56,
-                  borderRadius: "14px",
-                  background: `linear-gradient(135deg, ${item.color}15, ${item.color}35)`,
-                  border: `1px solid ${item.color}80`,
-                  boxShadow: `inset 0 1px 1px rgba(255,255,255,0.2), 0 8px 20px ${item.color}15`,
-                  fontSize: 28,
-                  marginBottom: 16
-                }}>
-                  {item.icon}
-                </div>
-                <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 16, marginBottom: 6, color: "var(--text)" }}>{item.title}</div>
-                <div style={{ fontSize: 13, color: "var(--subtext)", marginBottom: 8 }}>{item.issuer} · {item.date}</div>
-                <a href={item.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: item.url === "#" ? "var(--subtext)" : "var(--accent1)", fontWeight: 600, textDecoration: "none", borderBottom: item.url !== "#" ? "1px solid var(--accent1)" : "none" }}>
-                  {item.url !== "#" ? "View Certificate →" : "Badge pending"}
-                </a>
-              </motion.div>
-            );
-          })}
+          {loop.map((item, i) => (
+            <CarouselItem key={i} item={item} index={i} x={x} trackOffset={trackOffset} itemWidth={itemWidth} />
+          ))}
         </motion.div>
       </div>
       <div className="carousel-indicators">
@@ -1047,12 +1268,30 @@ function Carousel({ items }) {
    ============================================================ */
 
 /* --- HERO (Avatar Integration with exact avatar.png path) --- */
-function HeroSection() {
-  const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+function HeroSection({ ready }) {
+  const trackRef = useRef(null);
+  const reduce = useReducedMotion();
+  // Camera pull-back: as the pinned hero scrolls, the scene tilts away into depth
+  const { scrollYProgress } = useScroll({ target: trackRef, offset: ["start start", "end start"] });
+  const textScale = useTransform(scrollYProgress, [0, 0.7], [1, 0.84]);
+  const textRotateX = useTransform(scrollYProgress, [0, 0.7], [0, 22]);
+  const textY = useTransform(scrollYProgress, [0, 0.7], [0, -70]);
+  const textOpacity = useTransform(scrollYProgress, [0.25, 0.62], [1, 0]);
+  const avatarRotateY = useTransform(scrollYProgress, [0, 0.7], [0, -28]);
+  const avatarScale = useTransform(scrollYProgress, [0, 0.7], [1, 1.14]);
+  const avatarX = useTransform(scrollYProgress, [0, 0.7], [0, 50]);
+  const avatarOpacity = useTransform(scrollYProgress, [0.35, 0.68], [1, 0]);
+  const bgScale = useTransform(scrollYProgress, [0, 1], [1, 1.35]);
+  const bgOpacity = useTransform(scrollYProgress, [0, 0.8], [0.35, 0.08]);
+  const cueOpacity = useTransform(scrollYProgress, [0, 0.12], [1, 0]);
+  const textMotion = reduce ? {} : { scale: textScale, rotateX: textRotateX, y: textY, opacity: textOpacity, transformPerspective: 1100 };
+  const avatarMotion = reduce ? {} : { rotateY: avatarRotateY, scale: avatarScale, x: avatarX, opacity: avatarOpacity, transformPerspective: 900 };
+  const show = ready ? { opacity: 1, y: 0 } : {};
   return (
-    <section id="hero">
+    <div id="hero" ref={trackRef} className="hero-track">
+    <section id="hero-stage">
       {/* Background PixelBlast */}
-      <div style={{ position: "absolute", inset: 0, zIndex: 0, opacity: 0.35 }}>
+      <motion.div style={{ position: "absolute", inset: 0, zIndex: 0, opacity: reduce ? 0.35 : bgOpacity, scale: reduce ? 1 : bgScale }}>
         <PixelBlast
           variant="circle"
           pixelSize={12}
@@ -1069,13 +1308,13 @@ function HeroSection() {
           edgeFade={0.4}
           transparent={true}
         />
-      </div>
+      </motion.div>
 
       <div className="section-inner" style={{ width: "100%", zIndex: 1, pointerEvents: "none" }}>
         <div className="hero-inner" style={{ display: "flex", alignItems: "center", gap: 64, flexWrap: "wrap", pointerEvents: "auto" }}>
           {/* Text */}
-          <div style={{ flex: 1, minWidth: 280 }}>
-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }}>
+          <motion.div style={{ flex: 1, minWidth: 280, ...textMotion }}>
+            <motion.div initial={{ opacity: 0, y: 30 }} animate={show} transition={{ duration: 0.7 }}>
               <div className="section-label" style={{ marginBottom: 20 }}>👋 Hello World</div>
               <h1 style={{ fontFamily: "var(--font-display)", fontSize: "clamp(2.8rem,7vw,5rem)", fontWeight: 800, lineHeight: 1.05, marginBottom: 20, color: "var(--text)" }}>
                 Sanjith G
@@ -1087,18 +1326,19 @@ function HeroSection() {
                 <BlurText text={DATA.meta.tagline} delay={80} animateBy="words" className="" />
               </div>
             </motion.div>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9, duration: 0.5 }} className="hero-buttons-container" style={{ gap: 14, marginTop: 36 }}>
-              <a href={DATA.meta.resumeUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", padding: "12px 28px", borderRadius: 50, fontWeight: 700, fontSize: 14, textDecoration: "none", color: "#fff", background: "linear-gradient(135deg, var(--accent1), #9333EA)", boxShadow: "0 4px 20px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.2)", transition: "all 0.25s ease" }} onMouseEnter={(e) => { e.target.style.transform = "translateY(-3px) rotateX(5deg)"; e.target.style.boxShadow = "0 12px 32px rgba(124,58,237,0.4), inset 0 1px 0 rgba(255,255,255,0.3)"; }} onMouseLeave={(e) => { e.target.style.transform = ""; e.target.style.boxShadow = "0 4px 20px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.2)"; }}>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={show} transition={{ delay: 0.6, duration: 0.5 }} className="hero-buttons-container" style={{ gap: 14, marginTop: 36 }}>
+              <a href={DATA.meta.resumeUrl} target="_blank" rel="noreferrer" style={{ display: "inline-block", padding: "12px 28px", borderRadius: 50, fontWeight: 700, fontSize: 14, textDecoration: "none", color: "#fff", background: "linear-gradient(135deg, var(--accent1), #9333EA)", boxShadow: "0 4px 20px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.2)", transition: "all 0.25s ease" }} onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-3px) rotateX(5deg)"; e.currentTarget.style.boxShadow = "0 12px 32px rgba(124,58,237,0.4), inset 0 1px 0 rgba(255,255,255,0.3)"; }} onMouseLeave={(e) => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 4px 20px rgba(124,58,237,0.3), inset 0 1px 0 rgba(255,255,255,0.2)"; }}>
                 Download Resume
               </a>
-              <button onClick={() => scrollTo("projects")} style={{ display: "inline-block", padding: "12px 28px", borderRadius: 50, fontWeight: 700, fontSize: 14, cursor: "pointer", border: "none", background: "rgba(255,255,255,0.35)", backdropFilter: "blur(12px)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8), 0 4px 16px rgba(124,58,237,0.08)", color: "var(--text)", transition: "all 0.25s ease" }} onMouseEnter={(e) => { e.target.style.background = "rgba(255,255,255,0.55)"; e.target.style.transform = "translateY(-3px)"; }} onMouseLeave={(e) => { e.target.style.background = "rgba(255,255,255,0.35)"; e.target.style.transform = ""; }}>
+              <button onClick={() => scrollToId("projects")} style={{ display: "inline-block", padding: "12px 28px", borderRadius: 50, fontWeight: 700, fontSize: 14, cursor: "pointer", border: "none", background: "rgba(255,255,255,0.35)", backdropFilter: "blur(12px)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8), 0 4px 16px rgba(124,58,237,0.08)", color: "var(--text)", transition: "all 0.25s ease" }} onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.55)"; e.currentTarget.style.transform = "translateY(-3px)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.35)"; e.currentTarget.style.transform = ""; }}>
                 View Projects
               </button>
             </motion.div>
-          </div>
+          </motion.div>
 
           {/* Avatar Integration */}
-          <motion.div initial={{ opacity: 0, scale: 0.8, rotate: -5 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} transition={{ delay: 0.4, duration: 0.8, type: "spring" }} style={{ position: "relative", flexShrink: 0 }}>
+          <motion.div style={{ position: "relative", flexShrink: 0, ...avatarMotion }}>
+          <motion.div initial={{ opacity: 0, scale: 0.8, rotate: -5 }} animate={ready ? { opacity: 1, scale: 1, rotate: 0 } : {}} transition={{ delay: 0.2, duration: 0.8, type: "spring" }} style={{ position: "relative" }}>
             <div className="hero-avatar-inner" style={{ display: "flex", alignItems: "center", justifyContent: "center", animation: "float 6s ease-in-out infinite", position: "relative" }}>
               <img
                 src="/avatar.png"
@@ -1111,9 +1351,21 @@ function HeroSection() {
               ☁️
             </motion.div>
           </motion.div>
+          </motion.div>
         </div>
       </div>
+
+      {/* Scroll cue */}
+      <motion.div aria-hidden="true" className="scroll-cue" initial={{ opacity: 0 }} animate={ready ? { opacity: 1 } : {}} transition={{ delay: 1.2 }} style={{ position: "absolute", bottom: 96, left: "50%", x: "-50%", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, pointerEvents: "none" }}>
+        <motion.div style={{ opacity: cueOpacity, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+          <span style={{ fontFamily: "var(--font-display)", fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "var(--subtext)" }}>Scroll</span>
+          <div style={{ width: 22, height: 34, borderRadius: 12, border: "1.5px solid rgba(124,58,237,0.35)", display: "flex", justifyContent: "center", paddingTop: 6 }}>
+            <motion.div animate={{ y: [0, 10, 0], opacity: [1, 0.2, 1] }} transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }} style={{ width: 3, height: 7, borderRadius: 2, background: "var(--accent1)" }} />
+          </div>
+        </motion.div>
+      </motion.div>
     </section>
+    </div>
   );
 }
 
@@ -1156,7 +1408,10 @@ function AboutSection() {
             {DATA.stats.map((s, i) => (
               <motion.div key={i} ref={(el) => (tiltRef.current[i] = el)} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false, amount: 0.1 }} transition={{ delay: i * 0.1 }} className="stat-card" onMouseMove={(e) => handleTilt(e, i)} onMouseLeave={() => resetTilt(i)} style={{ "--shimmer-delay": `${i * 0.8}s` }}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>{s.icon}</div>
-                <div style={{ fontFamily: "var(--font-display)", fontSize: "2rem", fontWeight: 800, color: s.color }}>{s.value}</div>
+                <div className="stat-value" style={{ color: s.color }}>
+                  <span>{s.value.split(" ")[0]}</span>
+                  {s.value.includes(" ") && <span className="stat-unit">{s.value.split(" ").slice(1).join(" ")}</span>}
+                </div>
                 <div style={{ fontSize: 13, color: "var(--subtext)", fontWeight: 500, marginTop: 4 }}>{s.label}</div>
               </motion.div>
             ))}
@@ -1168,21 +1423,24 @@ function AboutSection() {
 }
 
 /* --- PROJECTS --- */
+const NUMBER_WORDS = { 6: "Six", 7: "Seven", 8: "Eight", 9: "Nine", 10: "Ten", 11: "Eleven", 12: "Twelve" };
 function ProjectsSection() {
   const [openId, setOpenId] = useState(null);
   return (
     <section id="projects">
       <div className="section-inner">
         <div className="section-label">Work</div>
-        <div className="section-title">Six Projects.<br />One Mission.</div>
-        <div className="projects-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", rowGap: 80, columnGap: 40, padding: "20px 0" }}>
+        <div className="section-title">{NUMBER_WORDS[DATA.projects.length] ?? DATA.projects.length} Projects.<br />One Mission.</div>
+        <div className="projects-grid">
           {DATA.projects.map((p, i) => (
             <motion.div key={p.id} initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: false, amount: 0.1 }} transition={{ delay: i * 0.08 }} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
               {/* Folder wrapper designed to prevent overlaps */}
               <div style={{ height: 110, display: "flex", alignItems: "flex-end", justifyContent: "center", marginBottom: 16, position: "relative" }}>
                 <Folder color={p.color} size={1.3} isOpen={openId === p.id} onClick={() => setOpenId(openId === p.id ? null : p.id)} />
               </div>
-              <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 14, color: "var(--text)", textAlign: "center", marginBottom: 8 }}>{p.name}</div>
+              <div style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: 14, color: "var(--text)", textAlign: "center", marginBottom: 8 }}>
+                {p.name}{p.isNew && <span className="new-badge">NEW</span>}
+              </div>
               <div style={{ width: "100%", minHeight: 0 }}>
                 <AnimatePresence>
                   {openId === p.id && (
@@ -1193,7 +1451,7 @@ function ProjectsSection() {
                         <div style={{ marginBottom: 14 }}>
                           {p.tech.map((t) => <span key={t} className="tag">{t}</span>)}
                         </div>
-                        <a href={p.github} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 700, color: p.color, textDecoration: "none", borderBottom: `1px solid ${p.color}` }}>
+                        <a href={p.github} target="_blank" rel="noreferrer" style={{ alignSelf: "flex-start", fontSize: 12, fontWeight: 700, color: p.color, textDecoration: "none", borderBottom: `1px solid ${p.color}` }}>
                           GitHub →
                         </a>
                       </GlassCard>
@@ -1201,6 +1459,40 @@ function ProjectsSection() {
                   )}
                 </AnimatePresence>
               </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* --- CONTRIBUTIONS & FREELANCE --- */
+function ContributionsSection() {
+  return (
+    <section id="contrib">
+      <div className="section-inner">
+        <div className="section-label">Open Source & Freelance</div>
+        <div className="section-title">Beyond My<br />Own Repos</div>
+        <div className="contrib-grid">
+          {DATA.contributions.map((c, i) => (
+            <motion.div key={c.id} initial={{ opacity: 0, rotateY: i % 2 ? -18 : 18, y: 40 }} whileInView={{ opacity: 1, rotateY: 0, y: 0 }} viewport={{ once: false, amount: 0.25 }} transition={{ delay: i * 0.12, duration: 0.8, ease: [0.22, 1, 0.36, 1] }} style={{ transformPerspective: 1000 }}>
+              <GlassCard style={{ height: "100%" }}>
+                <span className="kind-pill" style={{ color: c.color, background: `${c.color}14`, border: `1px solid ${c.color}33` }}>
+                  <span>{c.kindIcon}</span>{c.kind}
+                </span>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: "clamp(1.2rem,2.2vw,1.5rem)", fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>{c.name}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: c.color, marginBottom: 14 }}>{c.org}</div>
+                <p style={{ fontSize: 14, color: "var(--subtext)", lineHeight: 1.65, marginBottom: 16 }}>{c.tagline}</p>
+                <div style={{ marginBottom: 20 }}>
+                  {c.tech.map((t) => <span key={t} className="tag">{t}</span>)}
+                </div>
+                {c.href ? (
+                  <a href={c.href} target="_blank" rel="noreferrer" className="cta-link" style={{ color: c.color, borderBottom: `1px solid ${c.color}` }}>{c.cta}</a>
+                ) : (
+                  <button type="button" onClick={() => scrollToId(c.scrollTo)} className="cta-link" style={{ color: c.color, borderBottom: `1px solid ${c.color}` }}>{c.cta}</button>
+                )}
+              </GlassCard>
             </motion.div>
           ))}
         </div>
@@ -1286,7 +1578,7 @@ function ContactSection() {
         <div className="section-label">Get In Touch</div>
         <div className="section-title" style={{ marginBottom: 16 }}>Let's Build<br />Something.</div>
         <div style={{ display: "flex", justifyContent: "center", maxWidth: 520, margin: "0 auto" }}>
-          <BlurText text="Open to AI/ML roles, research collaborations, and interesting problems." delay={50} animateBy="words" className="" />
+          <BlurText text="Open to AI/ML roles, freelance builds, research collaborations, and interesting problems." delay={50} animateBy="words" className="" justify="center" />
         </div>
         <div style={{ display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap", marginTop: 48 }}>
           {[
@@ -1318,6 +1610,16 @@ function ContactSection() {
    ============================================================ */
 export default function Portfolio() {
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [introDone, setIntroDone] = useState(false);
+  const reduce = useReducedMotion();
+  useSmoothScroll(!reduce);
+
+  // Hold the page still while the intro title card plays
+  useEffect(() => {
+    if (introDone) { lenisInstance?.start(); return; }
+    lenisInstance?.stop();
+    window.scrollTo(0, 0);
+  }, [introDone]);
 
   // Inject global CSS
   useEffect(() => {
@@ -1327,12 +1629,13 @@ export default function Portfolio() {
     return () => document.head.removeChild(style);
   }, []);
 
-  const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+  const scrollTo = scrollToId;
 
   const dockItems = [
     { label: "Home", icon: "⌂", onClick: () => scrollTo("hero") },
     { label: "About", icon: "◉", onClick: () => scrollTo("about") },
     { label: "Projects", icon: "◈", onClick: () => scrollTo("projects") },
+    { label: "Open Source", icon: "⌥", onClick: () => scrollTo("contrib") },
     { label: "Skills", icon: "◇", onClick: () => scrollTo("skills") },
     { label: "Certs", icon: "✦", onClick: () => scrollTo("certs") },
     { label: "Papers", icon: "◻", onClick: () => scrollTo("publications") },
@@ -1342,15 +1645,21 @@ export default function Portfolio() {
 
   return (
     <>
+      {!reduce && <Intro onDone={() => setIntroDone(true)} />}
+      <ScrollProgress />
       <CustomCursor />
       <div className="bg-mesh"><div className="bg-dots" /></div>
-      <HeroSection />
-      <AboutSection />
-      <ProjectsSection />
-      <SkillsSection />
-      <CertificatesSection />
-      <PublicationsSection />
-      <ContactSection />
+      {!reduce && <div className="film-grain" aria-hidden="true" />}
+      <HeroSection ready={introDone || reduce} />
+      <main className="scenes">
+      <Scene3D><AboutSection /></Scene3D>
+      <Scene3D><ProjectsSection /></Scene3D>
+      <Scene3D><ContributionsSection /></Scene3D>
+      <Scene3D><SkillsSection /></Scene3D>
+      <Scene3D><CertificatesSection /></Scene3D>
+      <Scene3D><PublicationsSection /></Scene3D>
+      <Scene3D><ContactSection /></Scene3D>
+      </main>
       <DockNav items={dockItems} />
       <RAGChat isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </>
