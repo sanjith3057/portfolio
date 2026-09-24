@@ -218,6 +218,9 @@ const GLOBAL_CSS = `
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.3); border-radius: 3px; }
+  /* Hide the page scrollbar — the top progress bar shows position */
+  html { scrollbar-width: none; -ms-overflow-style: none; }
+  html::-webkit-scrollbar, body::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
   /* Dock Panel frosted glass on cream background */
   .dock-panel {
